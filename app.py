@@ -6,7 +6,7 @@ from torchvision import models
 
 st.set_page_config(page_title="AnimalFound AI", page_icon="🐾")
 
-st.title("🐶🐱 AnimalFound REAL AI App")
+st.title("🐶🐱 AnimalFound APP BY BUNNY")
 
 st.write("Upload an image and AI will predict the object")
 
