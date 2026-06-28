@@ -1,35 +1,50 @@
 import streamlit as st
 from PIL import Image
-import numpy as np
-import tensorflow as tf
+import torch
+import torchvision.transforms as transforms
+from torchvision import models
 
 st.set_page_config(page_title="AnimalFound AI", page_icon="🐾")
 
-st.title("🐶🐱 AnimalFound REAL AI Model")
+st.title("🐶🐱 AnimalFound REAL AI App")
 
-st.write("Upload an image and AI will predict what it sees")
+st.write("Upload an image and AI will predict the object")
 
-# Load pretrained model (runs inside app)
-model = tf.keras.applications.MobileNetV2(weights="imagenet")
-decode = tf.keras.applications.mobilenet_v2.decode_predictions
+# Load pretrained model
+model = models.resnet18(pretrained=True)
+model.eval()
+
+# ImageNet labels (simple version)
+import json
+import urllib.request
+
+LABELS_URL = "https://raw.githubusercontent.com/pytorch/hub/master/imagenet_classes.txt"
+labels = urllib.request.urlopen(LABELS_URL).read().decode().splitlines()
+
+transform = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.ToTensor(),
+])
 
 uploaded_file = st.file_uploader("Upload image", type=["jpg", "png"])
 
 if uploaded_file:
-    image = Image.open(uploaded_file)
+    image = Image.open(uploaded_file).convert("RGB")
     st.image(image, use_container_width=True)
 
-    st.write("🤖 AI is thinking...")
+    st.write("🤖 AI analyzing...")
 
-    img = image.resize((224, 224))
-    img = np.array(img)
-    img = np.expand_dims(img, axis=0)
-    img = tf.keras.applications.mobilenet_v2.preprocess_input(img)
+    img = transform(image).unsqueeze(0)
 
-    preds = model.predict(img)
-    results = decode(preds, top=3)[0]
+    with torch.no_grad():
+        outputs = model(img)
+        probabilities = torch.nn.functional.softmax(outputs[0], dim=0)
+
+    top5 = torch.topk(probabilities, 3)
 
     st.success("Top Predictions:")
 
-    for _, name, score in results:
-        st.write(f"{name} - {round(score*100, 2)}%")
+    for i in range(3):
+        idx = top5.indices[i].item()
+        score = top5.values[i].item()
+        st.write(f"{labels[idx]} - {round(score*100, 2)}%")
